@@ -515,9 +515,11 @@ fn render_json_writes_the_document_render_text_reads_back() -> termlens::Result<
 #[test]
 fn render_accepts_json_with_leading_whitespace() -> termlens::Result<()> {
     use std::process::Command;
-    let text = std::fs::read_to_string(data("before.snap"))?;
-    let screen = Screen::parse(&text).expect("the saved screen");
-    let json = serde_json::to_string_pretty(&screen).expect("serialize");
+    let saved = Command::new(env!("CARGO_BIN_EXE_termlens"))
+        .args(["render", "--json", &data("before.snap")])
+        .output()?;
+    assert!(saved.status.success(), "{saved:?}");
+    let json = String::from_utf8(saved.stdout).expect("UTF-8 JSON");
     let expected = with_stdin(&["render", "--text", "-"], &json);
     assert!(expected.status.success(), "{expected:?}");
 
