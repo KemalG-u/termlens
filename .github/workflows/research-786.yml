@@ -9,8 +9,12 @@ permissions:
 
 jobs:
   regression:
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
@@ -21,3 +25,11 @@ jobs:
           components: rustfmt, clippy
       - name: Leading JSON whitespace regression
         run: cargo test -p termlens-cli --test cli render_accepts_json_with_leading_whitespace -- --exact --nocapture
+      - name: Formatting
+        if: runner.os == 'Linux'
+        run: cargo fmt --all --check
+      - name: Workspace clippy
+        if: runner.os == 'Linux'
+        run: cargo clippy --workspace --all-targets --all-features -- -D warnings
+      - name: Workspace tests
+        run: cargo test --workspace --all-features

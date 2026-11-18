@@ -547,6 +547,19 @@ fn render_accepts_json_with_leading_whitespace() -> termlens::Result<()> {
     Ok(())
 }
 
+/// Format detection may look past Unicode whitespace, but JSON's parser
+/// must still reject whitespace outside the JSON grammar.
+#[test]
+fn render_does_not_accept_non_json_whitespace() {
+    let screen = Screen::parse("size: 1x1  cursor: 0,0\nx").expect("the saved screen");
+    let json = serde_json::to_string(&screen).expect("serialize");
+    for prefix in ["\u{a0}", "\u{b}"] {
+        let out = with_stdin(&["render", "--text", "-"], format!("{prefix}{json}"));
+        assert_eq!(out.status.code(), Some(2), "{prefix:?}: {out:?}");
+        assert!(out.stdout.is_empty(), "{prefix:?}: {out:?}");
+    }
+}
+
 #[test]
 fn a_file_that_is_not_a_screen_exits_two_and_names_it() -> termlens::Result<()> {
     // Wide, so the path in the diagnostic is not wrapped across two rows.
