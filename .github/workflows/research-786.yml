@@ -1,0 +1,23 @@
+name: Research saved-screen whitespace
+
+on:
+  push:
+    branches: [research/termlens-786]
+
+permissions:
+  contents: read
+
+jobs:
+  regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8
+        with:
+          toolchain: stable
+          components: rustfmt, clippy
+      - name: Leading JSON whitespace regression
+        run: cargo test -p termlens-cli --test cli render_accepts_json_with_leading_whitespace -- --exact --nocapture

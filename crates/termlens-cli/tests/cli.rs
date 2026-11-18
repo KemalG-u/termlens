@@ -510,6 +510,41 @@ fn render_json_writes_the_document_render_text_reads_back() -> termlens::Result<
     Ok(())
 }
 
+/// JSON permits leading spaces, tabs and CRs as well as newlines (#786).
+/// Saved screens must render identically from a file and from stdin.
+#[test]
+fn render_accepts_json_with_leading_whitespace() -> termlens::Result<()> {
+    use std::process::Command;
+    let text = std::fs::read_to_string(data("before.snap"))?;
+    let screen = Screen::parse(&text).expect("the saved screen");
+    let json = serde_json::to_string_pretty(&screen).expect("serialize");
+    let expected = with_stdin(&["render", "--text", "-"], &json);
+    assert!(expected.status.success(), "{expected:?}");
+
+    let path = std::env::temp_dir().join(format!(
+        "termlens-leading-json-whitespace-{}.json",
+        std::process::id()
+    ));
+    let mut failures = Vec::new();
+    for prefix in [" ", "\t", "\r", "\n", " \t\r\n"] {
+        let document = format!("{prefix}{json}");
+        std::fs::write(&path, &document)?;
+        let file = Command::new(env!("CARGO_BIN_EXE_termlens"))
+            .args(["render", "--text"])
+            .arg(&path)
+            .output()?;
+        let stdin = with_stdin(&["render", "--text", "-"], &document);
+        for (source, out) in [("file", file), ("stdin", stdin)] {
+            if !out.status.success() || out.stdout != expected.stdout {
+                failures.push(format!("{source}, prefix {prefix:?}: {out:?}"));
+            }
+        }
+    }
+    let _ = std::fs::remove_file(&path);
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+    Ok(())
+}
+
 #[test]
 fn a_file_that_is_not_a_screen_exits_two_and_names_it() -> termlens::Result<()> {
     // Wide, so the path in the diagnostic is not wrapped across two rows.
